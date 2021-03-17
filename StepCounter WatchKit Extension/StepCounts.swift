@@ -16,16 +16,28 @@ class StepCounts: ObservableObject {
     @Published var stepsWalked = Int()
     @Published var stepsRan = Int()
     
-    var walkReset = true
-    var runReset = true
+    var stepReset = true
+//    var runReset = true
     
-    let walkThreshold = 0.2
-    let runThreshold = 0.4
+//    let walkThreshold = 0.06
+//    let runThreshold = 0.25
+    
+    let noiseThreshold = 0.05
+    let walkThreshold = 0.10
+    let runThreshold = 0.80
     
     let motion = CMMotionManager()
     let queue = OperationQueue()
     
+    let windowSize = 10
+    var window : Array<Double>
+    var windowIdx = 0
+    
+    var prevAccel: Double = 0
+    
     init() {
+        window = [Double](repeating: 0, count: windowSize)
+        
         if motion.isDeviceMotionAvailable {
             print("Motion available")
             print(motion.isGyroAvailable ? "Gyro available" : "Gyro NOT available")
@@ -42,33 +54,58 @@ class StepCounts: ObservableObject {
                                                         let accelX = validData.userAcceleration.x
                                                         let accelY = validData.userAcceleration.y
                                                         let accelZ = validData.userAcceleration.z
-                                                        print("\(accelX), \(accelY), \(accelZ)")
+//                                                        print("\(accelX), \(accelY), \(accelZ)")
                                                         
+                                                        window[windowIdx] = accelX
+                                                        windowIdx = (windowIdx + 1) % window.count
+
+                                                        let avgAccelX = window.reduce(0.0, +) / Double(window.count)
                                                         
+                                                        print(avgAccelX)
                                                         
+                                                        if (abs(avgAccelX) < noiseThreshold) {
+                                                            
+                                                        } else if (avgAccelX > 0 && avgAccelX < prevAccel && stepReset) {
+                                                            stepReset = false
+                                                            
+//                                                            print("Peak value at \(prevAccel). Steps: \(self.stepsWalked), \(self.stepsRan)")
+
+                                                            if (prevAccel >= walkThreshold && prevAccel < runThreshold) {
+                                                                DispatchQueue.main.async {
+                                                                    self.stepsWalked += 1
+                                                                }
+//                                                                print("Walk step!")
+                                                            } else if (prevAccel >= runThreshold) {
+                                                                DispatchQueue.main.async {
+                                                                    self.stepsRan += 1
+                                                                }
+//                                                                print("Run step!")
+                                                            }
+                                                        } else if (avgAccelX < 0 && avgAccelX > prevAccel && !stepReset) {
+                                                            stepReset = true
+                                                            
+//                                                            print("Peak value at \(prevAccel). Steps: \(self.stepsWalked), \(self.stepsRan)")
+                                                            
+                                                            if (prevAccel <= -walkThreshold && prevAccel > -runThreshold) {
+                                                                DispatchQueue.main.async {
+                                                                    self.stepsWalked += 1
+                                                                }
+//                                                                print("Walk step!")
+                                                            } else if (prevAccel <= -runThreshold) {
+                                                                DispatchQueue.main.async {
+                                                                    self.stepsRan += 1
+                                                                }
+//                                                                print("Run step!")
+                                                            }
+                                                        }
+
                                                         DispatchQueue.main.async {
-                                                            if (accelX >= walkThreshold && walkReset) {
-                                                                self.stepsWalked += 1
-                                                                walkReset = false
-                                                            } else if (accelX <= -walkThreshold && !walkReset) {
-                                                                self.stepsWalked += 1
-                                                                walkReset = true
-                                                            }
-                                                            
-                                                            if (accelX >= runThreshold && runReset) {
-                                                                self.stepsRan += 1
-                                                                runReset = false
-                                                            } else if (accelX <= -runThreshold && !runReset) {
-                                                                self.stepsRan += 1
-                                                                runReset = true
-                                                            }
-                                                            
                                                             self.accelX = accelX
                                                             self.accelY = accelY
                                                             self.accelZ = accelZ
                                                         }
                                                         
-                                                        // Use the motion data in your app.
+                                                        prevAccel = avgAccelX
                                                     }
                                                  })
         }
@@ -78,7 +115,9 @@ class StepCounts: ObservableObject {
         self.stepsWalked = 0
         self.stepsRan = 0
         
-        self.walkReset = true
-        self.runReset = true
+        self.stepReset = true
+        self.prevAccel = 0
+        
+//        self.runReset = true
     }
 }
