@@ -6,7 +6,8 @@ float accFilterY[numItemsFilter];
 float accY[numItems];       // array to store samples
 int idx = 0;                // index to store a sample to the array
 int idy = 0;
-float walkThreshold = 200;
+float walkThreshold_pos = 200;
+float walkThreshold_neg = 200;
 bool walkReset = true;
 float stepsWalked = 0;
 float yMax = 0;
